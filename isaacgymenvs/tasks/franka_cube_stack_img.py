@@ -29,11 +29,12 @@
 import numpy as np
 import os
 import torch
+import cv2
 
 from isaacgym import gymtorch
 from isaacgym import gymapi
 
-from isaacgymenvs.utils.torch_jit_utils import quat_mul, to_torch, tensor_clamp  
+from isaacgymenvs.utils.torch_jit_utils import quat_mul, to_torch, tensor_clamp
 from isaacgymenvs.tasks.base.vec_task import VecTask
 
 
@@ -72,7 +73,7 @@ def axisangle2quat(vec, eps=1e-6):
     return quat
 
 
-class FrankaCubeStack(VecTask):
+class FrankaCubeStackImg(VecTask):
 
     def __init__(self, cfg, rl_device, sim_device, graphics_device_id, headless, virtual_screen_capture, force_render):
         self.cfg = cfg
@@ -296,7 +297,24 @@ class FrankaCubeStack(VecTask):
         max_agg_bodies = num_franka_bodies + 4     # 1 for table, table stand, cubeA, cubeB
         max_agg_shapes = num_franka_shapes + 4     # 1 for table, table stand, cubeA, cubeB
 
+        """
+        1) init camera properties and create cameras
+        2) render all camera tensors in refresh 
+        """
+        # camera properties
+        self.debug_img = True
+        self.camera_props = gymapi.CameraProperties()
+        self.camera_props.width = 640
+        self.camera_props.height = 480
+        self.camera_props.horizontal_fov = 69  # degree, Default: 90, RealSense D435 FoV = H69 / V42
+        self.camera_props.enable_tensors = True  # CUDA interop buffers will be available only if this is true.
+
+        self.default_cam_pos = [0.9, 0.0, 1.5]
+        self.default_cam_stare = [-0.45, 0.0, 1.0]
+
         self.frankas = []
+        self.cameras = []
+        self.cam_tensors = []
         self.envs = []
 
         # Create environments
@@ -341,12 +359,23 @@ class FrankaCubeStack(VecTask):
             self.gym.set_rigid_body_color(env_ptr, self._cubeA_id, 0, gymapi.MESH_VISUAL, cubeA_color)
             self.gym.set_rigid_body_color(env_ptr, self._cubeB_id, 0, gymapi.MESH_VISUAL, cubeB_color)
 
+            # Create cameras
+            camera_handle = self.gym.create_camera_sensor(env_ptr, self.camera_props)
+            cx, cy, cz = self.default_cam_pos
+            sx, sy, sz = self.default_cam_stare
+            self.gym.set_camera_location(camera_handle, env_ptr, gymapi.Vec3(cx, cy, cz), gymapi.Vec3(sx, sy, sz))
+
+            cam_tensor = self.gym.get_camera_image_gpu_tensor(self.sim, env_ptr, camera_handle, gymapi.IMAGE_COLOR)
+            torch_cam_tensor = gymtorch.wrap_tensor(cam_tensor)
+            self.cam_tensors.append(torch_cam_tensor)
+
             if self.aggregate_mode > 0:
                 self.gym.end_aggregate(env_ptr)
 
             # Store the created env pointers
             self.envs.append(env_ptr)
             self.frankas.append(franka_actor)
+            self.cameras.append(camera_handle)
 
         # Setup init state buffer
         self._init_cubeA_state = torch.zeros(self.num_envs, 13, device=self.device)
@@ -438,6 +467,21 @@ class FrankaCubeStack(VecTask):
         self.gym.refresh_rigid_body_state_tensor(self.sim)
         self.gym.refresh_jacobian_tensors(self.sim)
         self.gym.refresh_mass_matrix_tensors(self.sim)
+
+        # refresh image tensors
+        self.gym.render_all_camera_sensors(self.sim)
+        self.gym.start_access_image_tensors(self.sim)
+        # for i in range(self.num_envs):
+
+        if self.debug_img:
+            env_id = 0
+            img_tensor = self.cam_tensors[env_id]
+            img = img_tensor.cpu().numpy()
+            _img = cv2.cvtColor(img[:, :, :3], cv2.COLOR_BGR2RGB)
+            cv2.imshow("render", _img)
+            if cv2.waitKey(1) == 27:  # ESC
+                exit()
+        self.gym.end_access_image_tensors(self.sim)
 
         # Refresh states
         self._update_states()

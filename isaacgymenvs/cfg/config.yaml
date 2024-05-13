@@ -5,7 +5,7 @@ task_name: ${task.name}
 experiment: ''
 
 # if set to positive integer, overrides the default number of environments
-num_envs: ''
+num_envs: 512
 
 # seed - set to -1 to choose random seed
 seed: 42
@@ -59,7 +59,7 @@ headless: False
 
 # set default task and default training config based on task
 defaults:
-  - task: FrankaCubeStack
+  - task: FrankaCubeStackImg
   - train: ${task}PPO
   - pbt: no_pbt
   - override hydra/job_logging: disabled

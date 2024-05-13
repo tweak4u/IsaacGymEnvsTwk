@@ -1,5 +1,5 @@
 # used to create the object
-name: FrankaCubeStack
+name: FrankaCubeStackImg
 
 physics_engine: ${..physics_engine}
 
