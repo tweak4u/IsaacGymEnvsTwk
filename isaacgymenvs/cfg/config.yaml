@@ -5,7 +5,7 @@ task_name: ${task.name}
 experiment: ''
 
 # if set to positive integer, overrides the default number of environments
-num_envs: 512
+num_envs: 16384
 
 # seed - set to -1 to choose random seed
 seed: 42
@@ -13,7 +13,7 @@ seed: 42
 torch_deterministic: False
 
 # set the maximum number of learning iterations to train for. overrides default per-environment setting
-max_iterations: ''
+max_iterations: 10000
 
 ## Device config
 #  'physx' or 'flex'
