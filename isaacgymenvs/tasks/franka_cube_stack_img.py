@@ -103,7 +103,10 @@ class FrankaCubeStackImg(VecTask):
 
         # dimensions
         # obs include: cubeA_pose (7) + cubeB_pos (3) + eef_pose (7) + q_gripper (2)
-        self.cfg["env"]["numObservations"] = 19 if self.control_type == "osc" else 26
+        # num_obs for image input
+        # for image based observations: (width, height, channel)
+        self.cfg["env"]["numObservations"] = (64, 64, 3) if self.control_type == "osc" else 26
+        # self.cfg["env"]["numStates"] = 19
         # actions include: delta EEF if OSC (6) or joint torques (7) + bool gripper (1)
         self.cfg["env"]["numActions"] = 7 if self.control_type == "osc" else 8
 
@@ -304,8 +307,8 @@ class FrankaCubeStackImg(VecTask):
         # camera properties
         self.debug_img = True
         self.camera_props = gymapi.CameraProperties()
-        self.camera_props.width = 640
-        self.camera_props.height = 480
+        self.camera_props.width = 64
+        self.camera_props.height = 64
         self.camera_props.horizontal_fov = 69  # degree, Default: 90, RealSense D435 FoV = H69 / V42
         self.camera_props.enable_tensors = True  # CUDA interop buffers will be available only if this is true.
 
@@ -367,7 +370,7 @@ class FrankaCubeStackImg(VecTask):
 
             cam_tensor = self.gym.get_camera_image_gpu_tensor(self.sim, env_ptr, camera_handle, gymapi.IMAGE_COLOR)
             torch_cam_tensor = gymtorch.wrap_tensor(cam_tensor)
-            self.cam_tensors.append(torch_cam_tensor)
+            self.cam_tensors.append(torch_cam_tensor[..., :3])  # exclude the alpha channel
 
             if self.aggregate_mode > 0:
                 self.gym.end_aggregate(env_ptr)
@@ -376,6 +379,8 @@ class FrankaCubeStackImg(VecTask):
             self.envs.append(env_ptr)
             self.frankas.append(franka_actor)
             self.cameras.append(camera_handle)
+
+        self.cam_tensors = torch.stack(self.cam_tensors)
 
         # Setup init state buffer
         self._init_cubeA_state = torch.zeros(self.num_envs, 13, device=self.device)
@@ -493,11 +498,12 @@ class FrankaCubeStackImg(VecTask):
 
     def compute_observations(self):
         self._refresh()
-        obs = ["cubeA_quat", "cubeA_pos", "cubeA_to_cubeB_pos", "eef_pos", "eef_quat"]
-        obs += ["q_gripper"] if self.control_type == "osc" else ["q"]
-        self.obs_buf = torch.cat([self.states[ob] for ob in obs], dim=-1)
-
-        maxs = {ob: torch.max(self.states[ob]).item() for ob in obs}
+        self.obs_buf = self.cam_tensors
+        # obs = ["cubeA_quat", "cubeA_pos", "cubeA_to_cubeB_pos", "eef_pos", "eef_quat"]
+        # obs += ["q_gripper"] if self.control_type == "osc" else ["q"]
+        # self.obs_buf = torch.cat([self.states[ob] for ob in obs], dim=-1)
+        #
+        # maxs = {ob: torch.max(self.states[ob]).item() for ob in obs}
 
         return self.obs_buf
 

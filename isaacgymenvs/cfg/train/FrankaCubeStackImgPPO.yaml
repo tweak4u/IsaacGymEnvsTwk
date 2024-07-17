@@ -30,6 +30,26 @@ params:
       regularizer:
         name: None
 
+    cnn:
+      type: conv2d   # [conv2d, conv1d, coord_conv2d]
+      input_shape: [3, 64, 64]  # channel, height, width
+      initializer:
+        name: default
+      convs:
+        - filters: 32
+          kernel_size: 3
+          strides: 1
+          padding: 1
+        - filters: 64
+          kernel_size: 3
+          strides: 1
+          padding: 1
+        - filters: 128
+          kernel_size: 3
+          strides: 1
+          padding: 1
+      activation: relu
+
   load_checkpoint: ${if:${...checkpoint},True,False} # flag which sets whether to load the checkpoint
   load_path: ${...checkpoint} # path to the checkpoint to load
 

@@ -307,8 +307,10 @@ class VecTask(Env):
         """
 
         # allocate buffers
-        self.obs_buf = torch.zeros(
-            (self.num_envs, self.num_obs), device=self.device, dtype=torch.float)
+        _obs_size = (self.num_envs, *self.num_obs) if isinstance(self.num_obs, tuple) else (self.num_envs, self.num_obs)
+        self.obs_buf = torch.zeros(_obs_size, device=self.device, dtype=torch.float)
+        # self.obs_buf = torch.zeros(
+        #     (self.num_envs, self.num_obs), device=self.device, dtype=torch.float)
         self.states_buf = torch.zeros(
             (self.num_envs, self.num_states), device=self.device, dtype=torch.float)
         self.rew_buf = torch.zeros(
