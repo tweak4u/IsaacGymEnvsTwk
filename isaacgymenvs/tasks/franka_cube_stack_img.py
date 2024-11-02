@@ -36,6 +36,7 @@ from isaacgym import gymapi
 
 from isaacgymenvs.utils.torch_jit_utils import quat_mul, to_torch, tensor_clamp
 from isaacgymenvs.tasks.base.vec_task import VecTask
+from triton.language import dtype
 
 
 @torch.jit.script
@@ -380,8 +381,6 @@ class FrankaCubeStackImg(VecTask):
             self.frankas.append(franka_actor)
             self.cameras.append(camera_handle)
 
-        self.cam_tensors = torch.stack(self.cam_tensors)
-
         # Setup init state buffer
         self._init_cubeA_state = torch.zeros(self.num_envs, 13, device=self.device)
         self._init_cubeB_state = torch.zeros(self.num_envs, 13, device=self.device)
@@ -478,15 +477,17 @@ class FrankaCubeStackImg(VecTask):
         self.gym.start_access_image_tensors(self.sim)
         # for i in range(self.num_envs):
 
+        env_id = 0
+        img_tensor = self.cam_tensors[env_id]
+        img = img_tensor.clone().cpu().numpy()
+
+        self.gym.end_access_image_tensors(self.sim)
+
         if self.debug_img:
-            env_id = 0
-            img_tensor = self.cam_tensors[env_id]
-            img = img_tensor.cpu().numpy()
             _img = cv2.cvtColor(img[:, :, :3], cv2.COLOR_BGR2RGB)
             cv2.imshow("render", _img)
             if cv2.waitKey(1) == 27:  # ESC
                 exit()
-        self.gym.end_access_image_tensors(self.sim)
 
         # Refresh states
         self._update_states()
@@ -498,7 +499,10 @@ class FrankaCubeStackImg(VecTask):
 
     def compute_observations(self):
         self._refresh()
-        self.obs_buf = self.cam_tensors
+        _obs_buf = torch.stack(self.cam_tensors)
+        if _obs_buf.dtype == torch.uint8:
+            _obs_buf = _obs_buf / 255.0
+        self.obs_buf = _obs_buf
         # obs = ["cubeA_quat", "cubeA_pos", "cubeA_to_cubeB_pos", "eef_pos", "eef_quat"]
         # obs += ["q_gripper"] if self.control_type == "osc" else ["q"]
         # self.obs_buf = torch.cat([self.states[ob] for ob in obs], dim=-1)

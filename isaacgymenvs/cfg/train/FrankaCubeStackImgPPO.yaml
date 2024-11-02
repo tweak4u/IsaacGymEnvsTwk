@@ -46,9 +46,14 @@ params:
           padding: 1
         - filters: 128
           kernel_size: 3
-          strides: 1
+          strides: 2
+          padding: 1
+        - filters: 256
+          kernel_size: 3
+          strides: 2
           padding: 1
       activation: relu
+    normalization: batch_norm   # [layer_norm, batch_norm]
 
   load_checkpoint: ${if:${...checkpoint},True,False} # flag which sets whether to load the checkpoint
   load_path: ${...checkpoint} # path to the checkpoint to load
@@ -83,7 +88,7 @@ params:
     truncate_grads: True
     e_clip: 0.2
     horizon_length: 32
-    minibatch_size: 16384
+    minibatch_size: 4096
     mini_epochs: 5
     critic_coef: 4
     clip_value: True
