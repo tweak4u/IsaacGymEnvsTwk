@@ -21,7 +21,7 @@ params:
           val: 0
         fixed_sigma: True
     mlp:
-      units: [256, 128, 64]
+      units: [1024, 512, 256]
       activation: elu
       d2rl: False
 
@@ -32,9 +32,9 @@ params:
 
     cnn:
       type: conv2d   # [conv2d, conv1d, coord_conv2d]
-      input_shape: [3, 64, 64]  # channel, height, width
+      input_shape: [3, 96, 96]  # channel, height, width
       initializer:
-        name: default
+        name: kaiming_normal  # [default, const_initializer, orthogonal_initializer, glorot_normal_initializer, glorot_uniform_initializer, variance_scaling_initializer, random_uniform_initializer, kaiming_normal, orthogonal]
       convs:
         - filters: 32
           kernel_size: 3
@@ -42,7 +42,7 @@ params:
           padding: 1
         - filters: 64
           kernel_size: 3
-          strides: 1
+          strides: 2
           padding: 1
         - filters: 128
           kernel_size: 3
@@ -53,7 +53,8 @@ params:
           strides: 2
           padding: 1
       activation: relu
-    normalization: batch_norm   # [layer_norm, batch_norm]
+    aux_input_dim: 9
+#    normalization: batch_norm   # [layer_norm, batch_norm]
 
   load_checkpoint: ${if:${...checkpoint},True,False} # flag which sets whether to load the checkpoint
   load_path: ${...checkpoint} # path to the checkpoint to load
@@ -94,3 +95,28 @@ params:
     clip_value: True
     seq_len: 4
     bounds_loss_coef: 0.0001
+    central_value_config:
+      normalize_input: True
+      learning_rate: 5e-4
+      lr_schedule: adaptive
+      minibatch_size: 4096
+      mini_epochs: 5
+      clip_value: True
+      grad_norm: 1.0
+      truncate_grads: True
+      model:
+        name: central_value
+      network:
+        name: actor_critic
+        central_value: True
+        mlp:
+          units: [256, 128, 64]
+          activation: elu
+          d2rl: False
+
+          initializer:
+            name: default
+          regularizer:
+            name: None
+
+

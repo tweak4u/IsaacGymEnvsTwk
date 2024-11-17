@@ -27,6 +27,10 @@ env:
   alignRewardScale: 2.0
   stackRewardScale: 16.0
 
+#  numObservations: (128, 128, 3)
+  numStates: 19
+  numAuxObs: 9
+
   controlType: osc  # options are {joint_tor, osc}
 
   asset:

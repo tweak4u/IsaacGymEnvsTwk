@@ -106,7 +106,7 @@ class FrankaCubeStackImg(VecTask):
         # obs include: cubeA_pose (7) + cubeB_pos (3) + eef_pose (7) + q_gripper (2)
         # num_obs for image input
         # for image based observations: (width, height, channel)
-        self.cfg["env"]["numObservations"] = (64, 64, 3) if self.control_type == "osc" else 26
+        self.cfg["env"]["numObservations"] = (96, 96, 3) if self.control_type == "osc" else 26
         # self.cfg["env"]["numStates"] = 19
         # actions include: delta EEF if OSC (6) or joint torques (7) + bool gripper (1)
         self.cfg["env"]["numActions"] = 7 if self.control_type == "osc" else 8
@@ -308,13 +308,13 @@ class FrankaCubeStackImg(VecTask):
         # camera properties
         self.debug_img = True
         self.camera_props = gymapi.CameraProperties()
-        self.camera_props.width = 64
-        self.camera_props.height = 64
-        self.camera_props.horizontal_fov = 69  # degree, Default: 90, RealSense D435 FoV = H69 / V42
+        self.camera_props.width = self.cfg["env"]["numObservations"][0]
+        self.camera_props.height = self.cfg["env"]["numObservations"][1]
+        self.camera_props.horizontal_fov = 90  # degree, Default: 90, RealSense D435 FoV = H69 / V42
         self.camera_props.enable_tensors = True  # CUDA interop buffers will be available only if this is true.
 
-        self.default_cam_pos = [0.9, 0.0, 1.5]
-        self.default_cam_stare = [-0.45, 0.0, 1.0]
+        self.default_cam_pos = [0.5, 0.0, 1.5]
+        self.default_cam_stare = [-0.4, 0.0, 1.0]
 
         self.frankas = []
         self.cameras = []
@@ -477,7 +477,7 @@ class FrankaCubeStackImg(VecTask):
         self.gym.start_access_image_tensors(self.sim)
         # for i in range(self.num_envs):
 
-        env_id = 0
+        env_id = self.num_envs - 1
         img_tensor = self.cam_tensors[env_id]
         img = img_tensor.clone().cpu().numpy()
 
@@ -503,10 +503,13 @@ class FrankaCubeStackImg(VecTask):
         if _obs_buf.dtype == torch.uint8:
             _obs_buf = _obs_buf / 255.0
         self.obs_buf = _obs_buf
-        # obs = ["cubeA_quat", "cubeA_pos", "cubeA_to_cubeB_pos", "eef_pos", "eef_quat"]
-        # obs += ["q_gripper"] if self.control_type == "osc" else ["q"]
-        # self.obs_buf = torch.cat([self.states[ob] for ob in obs], dim=-1)
-        #
+
+        state = ["cubeA_quat", "cubeA_pos", "cubeA_to_cubeB_pos", "eef_pos", "eef_quat"]
+        state += ["q_gripper"] if self.control_type == "osc" else ["q"]
+        self.states_buf = torch.cat([self.states[ob] for ob in state], dim=-1)
+
+        aux_obs = ["eef_pos", "eef_quat", "q_gripper"]
+        self.aux_obs_buf = torch.cat([self.states[ax] for ax in aux_obs], dim=-1)
         # maxs = {ob: torch.max(self.states[ob]).item() for ob in obs}
 
         return self.obs_buf
@@ -795,7 +798,10 @@ def compute_franka_reward(
             "r_align_scale"] * align_reward,
     )
 
+    # cube out of reach condition
+    cube_x = states["cubeA_pos"][:, 0]
+
     # Compute resets
-    reset_buf = torch.where((progress_buf >= max_episode_length - 1) | (stack_reward > 0), torch.ones_like(reset_buf), reset_buf)
+    reset_buf = torch.where((progress_buf >= max_episode_length - 1) | (stack_reward > 0) | (cube_x > 0.3), torch.ones_like(reset_buf), reset_buf)
 
     return rewards, reset_buf

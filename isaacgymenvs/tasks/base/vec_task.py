@@ -103,6 +103,7 @@ class Env(ABC):
 
         self.num_observations = config["env"].get("numObservations", 0)
         self.num_states = config["env"].get("numStates", 0)
+        self.num_aux_obs = config["env"].get("numAuxObs", 0)
 
         self.obs_space = spaces.Box(np.ones(self.num_obs) * -np.Inf, np.ones(self.num_obs) * np.Inf)
         self.state_space = spaces.Box(np.ones(self.num_states) * -np.Inf, np.ones(self.num_states) * np.Inf)
@@ -308,6 +309,7 @@ class VecTask(Env):
 
         # allocate buffers
         _obs_size = (self.num_envs, *self.num_obs) if isinstance(self.num_obs, tuple) else (self.num_envs, self.num_obs)
+        self.aux_obs_buf = torch.zeros((self.num_envs, self.num_aux_obs), device=self.device, dtype=torch.float)
         self.obs_buf = torch.zeros(_obs_size, device=self.device, dtype=torch.float)
         # self.obs_buf = torch.zeros(
         #     (self.num_envs, self.num_obs), device=self.device, dtype=torch.float)
@@ -432,6 +434,7 @@ class VecTask(Env):
             Observation dictionary
         """
         self.obs_dict["obs"] = torch.clamp(self.obs_buf, -self.clip_obs, self.clip_obs).to(self.rl_device)
+        self.obs_dict["aux_obs"] = torch.clamp(self.aux_obs_buf, -self.clip_obs, self.clip_obs).to(self.rl_device)
 
         # asymmetric actor-critic
         if self.num_states > 0:

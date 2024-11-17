@@ -5,7 +5,7 @@ task_name: ${task.name}
 experiment: ''
 
 # if set to positive integer, overrides the default number of environments
-num_envs: 128
+num_envs: 512
 
 # seed - set to -1 to choose random seed
 seed: 42
@@ -13,7 +13,7 @@ seed: 42
 torch_deterministic: False
 
 # set the maximum number of learning iterations to train for. overrides default per-environment setting
-max_iterations: ''
+max_iterations: 20000
 
 ## Device config
 #  'physx' or 'flex'
@@ -35,6 +35,7 @@ num_subscenes: 4 # Splits the simulation into N physics scenes and runs each one
 # test - if set, run policy in inference mode (requires setting checkpoint to load)
 test: False
 # used to set checkpoint path
+# Ex] 'runs/FrankaCubeStackImg_05-17-18-32/nn/FrankaCubeStackImg.pth'
 checkpoint: ''
 # set sigma when restoring network
 sigma: ''
