@@ -33,7 +33,7 @@ import torch
 from isaacgym import gymtorch
 from isaacgym import gymapi
 
-from isaacgymenvs.utils.torch_jit_utils import quat_mul, to_torch, tensor_clamp  
+from isaacgymenvs.utils.torch_jit_utils import quat_mul, to_torch, tensor_clamp, quat_apply
 from isaacgymenvs.tasks.base.vec_task import VecTask
 
 
@@ -422,7 +422,9 @@ class FrankaCubeStack(VecTask):
             "eef_quat": self._eef_state[:, 3:7],
             "eef_vel": self._eef_state[:, 7:],
             "eef_lf_pos": self._eef_lf_state[:, :3],
+            "eef_lf_quat": self._eef_lf_state[:, 3:7],
             "eef_rf_pos": self._eef_rf_state[:, :3],
+            "eef_rf_quat": self._eef_rf_state[:, 3:7],
             # Cubes
             "cubeA_quat": self._cubeA_state[:, 3:7],
             "cubeA_pos": self._cubeA_state[:, :3],
@@ -672,14 +674,21 @@ class FrankaCubeStack(VecTask):
             # Grab relevant states to visualize
             eef_pos = self.states["eef_pos"]
             eef_rot = self.states["eef_quat"]
+            eef_lf_pos = self.states["eef_lf_pos"]
+            eef_lf_rot = self.states["eef_lf_quat"]
+            eef_rf_pos = self.states["eef_rf_pos"]
+            eef_rf_rot = self.states["eef_rf_quat"]
             cubeA_pos = self.states["cubeA_pos"]
             cubeA_rot = self.states["cubeA_quat"]
             cubeB_pos = self.states["cubeB_pos"]
             cubeB_rot = self.states["cubeB_quat"]
 
+            pos_list = [eef_pos, eef_lf_pos, eef_rf_pos]
+            rot_list = [eef_rot, eef_lf_rot, eef_rf_rot]
+
             # Plot visualizations
             for i in range(self.num_envs):
-                for pos, rot in zip((eef_pos, cubeA_pos, cubeB_pos), (eef_rot, cubeA_rot, cubeB_rot)):
+                for pos, rot in zip(pos_list, rot_list):
                     px = (pos[i] + quat_apply(rot[i], to_torch([1, 0, 0], device=self.device) * 0.2)).cpu().numpy()
                     py = (pos[i] + quat_apply(rot[i], to_torch([0, 1, 0], device=self.device) * 0.2)).cpu().numpy()
                     pz = (pos[i] + quat_apply(rot[i], to_torch([0, 0, 1], device=self.device) * 0.2)).cpu().numpy()
@@ -732,13 +741,15 @@ def compute_franka_reward(
     stack_reward = cubeA_align_cubeB & cubeA_on_cubeB & gripper_away_from_cubeA
 
     # Compose rewards
+    # if stack_reward.sum():
+    #     print("stack_reward")
 
     # We either provide the stack reward or the align + dist reward
     rewards = torch.where(
         stack_reward,
         reward_settings["r_stack_scale"] * stack_reward,
-        reward_settings["r_dist_scale"] * dist_reward + reward_settings["r_lift_scale"] * lift_reward + reward_settings[
-            "r_align_scale"] * align_reward,
+        reward_settings["r_dist_scale"] * dist_reward + reward_settings["r_lift_scale"] * lift_reward +
+        reward_settings["r_align_scale"] * align_reward,
     )
 
     # Compute resets
