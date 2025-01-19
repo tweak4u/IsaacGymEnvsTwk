@@ -2,6 +2,31 @@
 
 [Website](https://developer.nvidia.com/isaac-gym) | [Technical Paper](https://arxiv.org/abs/2108.10470) | [Videos](https://sites.google.com/view/isaacgym-nvidia)
 
+### New Task! 🚀
+- We are excited to introduce the FrankaCubeStackImg, a new video-based version of the FrankaCubeStack task! 
+
+📂 Newly added files for FrankaCubeStackImg
+```commandline
+📂 IsaacGymEnvsTwk
+└── 📂 isaacgymenvs
+    ├── 📂 cfg
+    │   ├── 📂 task
+    │   │   └── 📄 FrankaCubeStackImg.yaml
+    │   └── 📂 train
+    │       └── 📄 FrankaCubeStackImgPPO.yaml
+    └── 📂 tasks
+        └── 📄 franka_cube_stack_img.py
+```
+
+- Set the task name in config.yaml to FrankaCubeStackImg, configure the number of environments to a level that your GPU memory can handle, and start training.
+
+#### Pre-trained Model
+- To apply the pre-trained model:
+1. 📥 **Download Trained Model**: [Click here to download](https://drive.google.com/file/d/1Cw2r3_Xyo_G-9AEp1L_4UtT-FbsJzDA6/view?usp=drive_link)
+2. Extract the compressed file into the `isaacgymenvs/runs` folder.
+3. Set the project folder name in the `folder` variable of `test.py`. (e.g., folder = 'FrankaCubeStackImg_13-20-58-52')
+4. Run `test.py`.
+
 
 ### About this repository
 
